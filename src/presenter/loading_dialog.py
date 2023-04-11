@@ -1,6 +1,6 @@
 import time
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, simpledialog
 
 
 class LoadingDialog:
@@ -20,8 +20,6 @@ class LoadingDialog:
 
         self.dialog.transient(parent)
         self.dialog.grab_set()
-
-        self.dialog.after(5000, self.close)
 
     def close(self):
         self.dialog.grab_release()

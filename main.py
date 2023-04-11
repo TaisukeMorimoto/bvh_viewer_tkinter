@@ -1,6 +1,8 @@
-import time
+import os
+import threading
+import tkinter
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from typing import List
 
 import matplotlib.pyplot as plt
@@ -22,12 +24,76 @@ class BvhMotionViewerApp:
 
     def __init__(self, master):
 
+        # initial_processで定義される変数
+        self.coordinate_drawer = None
+        self.coordinate_anim = None
+        self.graph_drawer_list = None
+        self.graph_ax_list = None
+        self.coordinate_ax = None
+        self.fig = None
+        self.graph_data_list = None
+        self.coordinate_data = None
+
+        self.file_name: str = "data/MCPM_20230410_150228.BVH"
+
         self.master = master
         master.title("BVH Motion Viewer")
         master.geometry("1080x720")
 
+        # 初期化処理
+        self._initial_process(file_name=self.file_name)
+
+        # operation frame
+        self.operation_frame = tk.Frame(master=master)
+        self.operation_frame.pack(side=tk.BOTTOM)
+
+        # file名の表示
+        self.file_name_label = tk.Label(self.operation_frame, text=f"{os.path.basename(self.file_name)}")
+        self.file_name_label.pack(side=tk.LEFT, padx=20, pady=5)
+
+        # スライダーの初期化
+        self.slider = ttk.Scale(self.operation_frame,
+                                from_=0,
+                                to=len(self.coordinate_data.local_pos_list) - 1,
+                                orient="horizontal",
+                                command=self.update_animation_and_graphs)
+        self.slider.pack(side=tk.LEFT, padx=2, pady=5)
+
+        # 再生ボタンの初期化
+        self.play_button = tk.Button(self.operation_frame, text="再生", command=self.play)
+        self.play_button.pack(side=tk.LEFT, padx=2, pady=5)
+
+        # 停止ボタンの初期化
+        self.stop_button = tk.Button(self.operation_frame, text="停止", command=self.stop)
+        self.stop_button.pack(side=tk.LEFT, padx=2, pady=5)
+
+        # 更新ボタンの初期化
+        self.reload_bvh_button = tk.Button(self.operation_frame, text="他のファイルを開く", command=self._read_other_file)
+        self.reload_bvh_button.pack(side=tk.LEFT, padx=2, pady=5)
+
+        # グラフを描画するキャンバスの初期化
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side="left", fill="both", expand=True)
+
+    def _read_other_file(self):
+        file_path = filedialog.askopenfilename()
+        file_ext = os.path.splitext(file_path)[-1]
+        if file_ext not in [".BVH", ".bvh"]:
+            tk.messagebox.showerror("エラー", "BVHファイルを選択してください")
+            return
+        if not os.path.exists(file_path):
+            tk.messagebox.showerror("エラー", "ファイルが見つかりませんでした。")
+            return
+
+        # 正常なファイルの場合は読み込み、描画する
+        self.reload_bvh(file_name=file_path)
+
+    def _initial_process(self, file_name: str):
+        """tkinterの画面関連以外の初期化処理"""
+
         # bvhファイルのローディング
-        self.coordinate_data: CoordinateData = self.loading_bvh()
+        self.coordinate_data: CoordinateData = self.loading_bvh(file_name=file_name)
 
         # グラフデータの計算
         self.graph_data_list: List[GraphData] = [
@@ -68,29 +134,33 @@ class BvhMotionViewerApp:
         for drawer in self.graph_drawer_list:
             drawer.draw_graph_data_at_specific_frame(frame=0)
 
-        # スライダーの初期化
-        self.slider = ttk.Scale(master,
-                                from_=0,
-                                to=len(self.coordinate_data.local_pos_list),
-                                orient="horizontal",
-                                command=self.update_animation_and_graphs)
-        self.slider.pack()
+    def _clear_figure_canvas(self):
+        for item in self.canvas.get_tk_widget().find_all():
+            self.canvas.get_tk_widget().delete(item)
+        self.canvas.get_tk_widget().destroy()
+
+    def reload_bvh(self, file_name: str = "data/MCPM_20230410_150425.BVH"):
+        print(f"reload bvh start")
+
+        # ファイル名表示を更新
+        self.file_name_label.config(text=f"{os.path.basename(file_name)}")
+
+        # 描画を一度すべてクリアする
+        self._clear_figure_canvas()
+
+        # 再度グラフデータの読み込みや描画処理
+        self._initial_process(file_name=file_name)
 
         # グラフを描画するキャンバスの初期化
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.master)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side="left", fill="both", expand=True)
 
-        # 再生ボタンの初期化
-        self.play_button = tk.Button(master, text="再生", command=self.play)
-        self.play_button.pack()
-
-        # 停止ボタンの初期化
-        self.stop_button = tk.Button(master, text="停止", command=self.stop)
-        self.stop_button.pack()
+        # スライダーのtoの値を更新
+        self.slider.config(to=len(self.coordinate_data.local_pos_list) - 1)
 
     @staticmethod
-    def loading_bvh(file_name: str = "data/MCPM_20230410_150228.BVH"):
+    def loading_bvh(file_name: str):
 
         # ローディング中の表示
         # dialog = LoadingDialog(self.master)
@@ -127,7 +197,6 @@ class BvhMotionViewerApp:
 
     def stop(self):
         if self.coordinate_anim is not None:
-            self.play_button.config(text="再生")
             self.coordinate_anim.event_source.stop()
 
     def update_animation_and_graphs(self, frame):
