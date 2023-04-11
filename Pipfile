@@ -10,6 +10,8 @@ pandas = "*"
 matplotlib = "*"
 icecream = "*"
 dataclasses-json = "*"
+pillow = "*"
+pyinstaller = "*"
 
 [dev-packages]
 
