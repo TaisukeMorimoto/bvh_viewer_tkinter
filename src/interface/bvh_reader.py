@@ -105,4 +105,5 @@ class BvhReader:
                             joints_rotations=joints_rotations,
                             joints_saved_angles=joints_saved_angles,
                             joints_positions=joints_positions,
-                            joints_saved_positions=joints_saved_positions)
+                            joints_saved_positions=joints_saved_positions,
+                            fps=int(1/self.bvh_data.frame_time))

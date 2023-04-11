@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -8,89 +8,70 @@ from src.model.skeleton_data import CoordinateData
 
 class CoordinateDataDrawer:
 
-    def __init__(self):
-        pass
+    def __init__(self, ax, coordinate_data: CoordinateData):
+        self.is_playing: bool = True
+        self.ax = ax
+        self.current_frame: int = 0
+        self.coordinate_data: CoordinateData = coordinate_data
+        self.local_pos_min, self.local_pos_max = self._calc_lim(pos_list=self.coordinate_data.local_pos_list)
+        self.lines_dict: dict = {}
 
     @staticmethod
-    def draw_local_pos(coordinate_data: CoordinateData, frame_skips: int = 5):
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
+    def _calc_lim(pos_list: List[Dict[str, np.array]]):
+        """軸の表示域の計算
+        """
         local_pos_min_list = []
         local_pos_max_list = []
-        for local_pos in coordinate_data.local_pos_list:
+        for local_pos in pos_list:
             local_pos_min_list.append(np.amin([x for x in local_pos.values()], axis=0))
             local_pos_max_list.append(np.amax([x for x in local_pos.values()], axis=0))
-        local_pos_max = np.amax(local_pos_max_list, axis=0)
-        local_pos_min = np.amin(local_pos_min_list, axis=0)
+        pos_max = np.amax(local_pos_max_list, axis=0)
+        pos_min = np.amin(local_pos_min_list, axis=0)
+        return pos_min, pos_max
 
-        for i in range(0, len(coordinate_data.local_pos_list), frame_skips):
+    def clear(self):
+        """描画のクリア
+        """
+        self.ax.cla()
 
-            local_pos: Dict[np.array] = coordinate_data.local_pos_list[i]
-            for joint_name in coordinate_data.joint_names:
-                if joint_name == coordinate_data.joint_names[0]: continue  # skip root joint
-                parent_joint = coordinate_data.joints_hierarchy[joint_name][0]
-                if parent_joint == "root": continue  # skip connect to root
+    def draw_local_pos_at_initial_frame(self):
+        """初回 0フレーム時のスティックピクチャーを描画
+        """
+        frame = 0
+        self.current_frame = frame
 
-                plt.plot(xs=[local_pos[parent_joint][0], local_pos[joint_name][0]],
-                         zs=[local_pos[parent_joint][1], local_pos[joint_name][1]],
-                         ys=[local_pos[parent_joint][2], local_pos[joint_name][2]], c='red', lw=2.5)
+        local_pos: Dict[np.array] = self.coordinate_data.local_pos_list[frame]
+        for joint_name in self.coordinate_data.joint_names:
+            if joint_name == self.coordinate_data.joint_names[0]: continue  # skip root joint
+            parent_joint = self.coordinate_data.joints_hierarchy[joint_name][0]
+            if parent_joint == "root": continue  # skip connect to root
+            lines = self.ax.plot(xs=[local_pos[parent_joint][0], local_pos[joint_name][0]],
+                                 zs=[local_pos[parent_joint][1], local_pos[joint_name][1]],
+                                 ys=[local_pos[parent_joint][2], local_pos[joint_name][2]], c='red', lw=2.5)
+            self.lines_dict[joint_name] = lines
 
-            # plot origin
-            # plt.scatter(xs=[0, 0], zs=[0, 0], ys=[0, 0], c='green', lw=5)
-            # ax.set_axis_off()
-            ax.set_xlim(local_pos_min[0], local_pos_max[0])
-            ax.set_ylim(local_pos_min[2], local_pos_max[2])
-            ax.set_zlim(local_pos_min[1], local_pos_max[1])
-            plt.title('frame: ' + str(i))
-            plt.xlabel("x")
-            plt.ylabel("y")
-            # plt.zlabel("z")
-            plt.pause(0.001)
-            ax.cla()
+        self.ax.set_title('frame: ' + str(frame))
+        self.ax.set_xlim(self.local_pos_min[0], self.local_pos_max[0])
+        self.ax.set_ylim(self.local_pos_min[2], self.local_pos_max[2])
+        self.ax.set_zlim(self.local_pos_min[1], self.local_pos_max[1])
+        self.ax.set_xlabel("x")
+        self.ax.set_ylabel("y")
+        self.ax.set_zlabel("z")
+        self.ax.set_title('frame: ' + str(0))
 
-        pass
+    def draw_local_pos_at_specific_frame(self, frame: int):
+        """特定のフレーム時のスティックピクチャーを描画
+        """
+        self.current_frame = frame
+        local_pos: Dict[np.array] = self.coordinate_data.local_pos_list[frame]
+        for joint_name in self.coordinate_data.joint_names:
+            if joint_name == self.coordinate_data.joint_names[0]: continue  # skip root joint
+            parent_joint = self.coordinate_data.joints_hierarchy[joint_name][0]
+            if parent_joint == "root": continue  # skip connect to root
 
+            lines = self.lines_dict[joint_name]
+            lines[0].set_data_3d([local_pos[parent_joint][0], local_pos[joint_name][0]],
+                                 [local_pos[parent_joint][2], local_pos[joint_name][2]],
+                                 [local_pos[parent_joint][1], local_pos[joint_name][1]])
 
-    @staticmethod
-    def draw_world_pos(coordinate_data: CoordinateData, frame_skips: int = 5):
-
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
-        world_pos_min_list = []
-        world_pos_max_list = []
-        for world_pos in coordinate_data.world_pos_list:
-            world_pos_min_list.append(np.amin([x for x in world_pos.values()], axis=0))
-            world_pos_max_list.append(np.amax([x for x in world_pos.values()], axis=0))
-        world_pos_max = np.amax(world_pos_max_list, axis=0)
-        world_pos_min = np.amin(world_pos_min_list, axis=0)
-
-        for i in range(0, len(coordinate_data.world_pos_list), frame_skips):
-
-            world_pos: Dict[np.array] = coordinate_data.world_pos_list[i]
-            for joint_name in coordinate_data.joint_names:
-                if joint_name == coordinate_data.joint_names[0]: continue  # skip root joint
-                parent_joint = coordinate_data.joints_hierarchy[joint_name][0]
-                if parent_joint == "root": continue  # skip connect to root
-
-                plt.plot(xs = [world_pos[parent_joint][0], world_pos[joint_name][0]],
-                         zs = [world_pos[parent_joint][1], world_pos[joint_name][1]],
-                         ys = [world_pos[parent_joint][2], world_pos[joint_name][2]], c = 'blue', lw = 2.5)
-
-            # plot origin
-            # plt.scatter(xs=[0, 0], zs=[0, 0], ys=[0, 0], c='green', lw=5)
-
-            # ax.set_axis_off()
-            ax.set_xlim(world_pos_min[0], world_pos_max[0])
-            ax.set_ylim(world_pos_min[2], world_pos_max[2])
-            ax.set_zlim(world_pos_min[1], world_pos_max[1])
-            plt.title('frame: ' + str(i))
-            plt.xlabel("x")
-            plt.ylabel("y")
-            # plt.zlabel("z")
-            plt.pause(0.001)
-            ax.cla()
-
-        pass
+        self.ax.set_title('frame: ' + str(frame))

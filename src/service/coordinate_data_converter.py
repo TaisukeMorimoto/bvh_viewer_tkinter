@@ -152,4 +152,5 @@ class CoordinateDataConverter:
         return CoordinateData(world_pos_list=world_pos_list,
                               local_pos_list=local_pos_list,
                               joint_names=skeleton_data.joints_names,
-                              joints_hierarchy=skeleton_data.joints_hierarchy)
+                              joints_hierarchy=skeleton_data.joints_hierarchy,
+                              fps=skeleton_data.fps)
