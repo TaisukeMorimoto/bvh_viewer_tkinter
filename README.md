@@ -15,4 +15,8 @@
     ```
 6. will display graphical view.
 
+## sample viewer
+
+- This bvh data was obtained using [mocopi](https://www.sony.jp/mocopi/)
+
 https://user-images.githubusercontent.com/65071730/230885088-5b2f25b3-766f-47ec-a073-460dbef08891.mov
